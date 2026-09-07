@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>🍃 Кто спрятался?</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(145deg, #e8f5e9 0%, #a5d6a7 100%);
+            font-family: 'Comic Sans MS', 'Segoe UI', cursive, sans-serif;
+            padding: 16px;
+            margin: 0;
+        }
+
+        .game-wrapper {
+            max-width: 650px;
+            width: 100%;
+            background: #fef8e7;
+            border-radius: 60px 60px 40px 40px;
+            padding: 20px 20px 28px;
+            box-shadow: 0 20px 30px rgba(0,0,0,0.15), 0 8px 0 #7d9b7a;
+            border: 4px solid #7d9b7a;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2rem;
+            font-weight: 700;
+            color: #2d4b2c;
+            text-shadow: 3px 3px 0 #b5d6b1;
+            margin-top: -6px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        /* ----- СЕТКА 3x3 ----- */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            padding: 16px;
+            background: #dcedc8;
+            border-radius: 40px;
+            border: 4px solid #6c8f69;
+            margin-bottom: 16px;
+            aspect-ratio: 1/1;
+        }
+
+        .cell {
+            aspect-ratio: 1/1;
+            border-radius: 24px;
+            background: radial-gradient(circle at 30% 30%, #81c784, #388e3c);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 4px solid #2e7d32;
+            box-shadow: 0 6px 0 #1b5e20, inset -4px -4px 8px rgba(0,0,0,0.2);
+            position: relative;
+        }
+
+        .cell .leaf-icon {
+            font-size: 3.8rem;
+            transition: all 0.3s;
+        }
+
+        .cell .bug-icon {
+            font-size: 3.8rem;
+            opacity: 0;
+            transition: all 0.3s;
+            position: absolute;
+        }
+
+        .cell.revealed .leaf-icon {
+            animation: leafFly 0.5s ease forwards;
+        }
+
+        @keyframes leafFly {
+            0% { transform: scale(1) rotate(0deg); opacity: 1; }
+            100% { transform: scale(0) rotate(180deg) translateY(-80px); opacity: 0; }
+        }
+
+        .cell.revealed .bug-icon {
+            opacity: 1;
+            animation: bugPop 0.4s ease;
+        }
+
+        @keyframes bugPop {
+            0% { transform: scale(0) rotate(-30deg); }
+            50% { transform: scale(1.3) rotate(5deg); }
+            100% { transform: scale(1) rotate(0deg); }
+        }
+
+        .cell:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #1b5e20;
+        }
+
+        .cell.hidden .leaf-icon {
+            display: none;
+        }
+
+        .cell.hidden .bug-icon {
+            opacity: 1;
+        }
+
+        .cell.matched {
+            background: radial-gradient(circle at 30% 30%, #ffd54f, #f9a825);
+            border-color: #f57f17;
+            box-shadow: 0 4px 0 #e65100;
+            cursor: default;
+            animation: matchPop 0.5s ease;
+        }
+
+        .cell.matched .bug-icon {
+            opacity: 1;
+        }
+
+        .cell.matched .leaf-icon {
+            display: none;
+        }
+
+        @keyframes matchPop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+            100% { transform: scale(1); }
+        }
+
+        .cell.disabled {
+            pointer-events: none;
+        }
+
+        /* ----- ЦЕНТРАЛЬНАЯ ЯЧЕЙКА (ВСЕГДА ПУСТАЯ) ----- */
+        .cell.center-empty {
+            background: radial-gradient(circle at 30% 30%, #c8e6c9, #81c784);
+            border-color: #4caf50;
+            box-shadow: 0 4px 0 #2e7d32;
+            cursor: default;
+            opacity: 0.7;
+        }
+
+        .cell.center-empty .leaf-icon {
+            font-size: 4rem;
+            opacity: 0.5;
+            animation: gentleSway 2s ease-in-out infinite;
+        }
+
+        .cell.center-empty .bug-icon {
+            display: none;
+        }
+
+        @keyframes gentleSway {
+            0%, 100% { transform: rotate(-5deg); }
+            50% { transform: rotate(5deg); }
+        }
+
+        .cell.center-empty:active {
+            transform: none;
+            box-shadow: 0 4px 0 #2e7d32;
+        }
+
+        /* ----- ПОДСКАЗКА ----- */
+        .hint-area {
+            background: #fff8e1;
+            border-radius: 40px;
+            padding: 14px 20px;
+            border: 3px solid #b58a6a;
+            margin-bottom: 14px;
+            text-align: center;
+        }
+
+        .hint-label {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #3d2e1e;
+            margin-bottom: 8px;
+        }
+
+        .hint-bugs {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+            min-height: 50px;
+            align-items: center;
+        }
+
+        .hint-bug {
+            font-size: 2.8rem;
+            opacity: 0.3;
+            transition: all 0.4s;
+            filter: grayscale(100%);
+        }
+
+        .hint-bug.found {
+            opacity: 1;
+            filter: grayscale(0%);
+            animation: hintPop 0.5s ease;
+        }
+
+        @keyframes hintPop {
+            0% { transform: scale(0.5); }
+            50% { transform: scale(1.4); }
+            100% { transform: scale(1); }
+        }
+
+        /* ----- ИНФО ----- */
+        .info-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .score {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #2d4b2c;
+            background: #fff6dd;
+            padding: 6px 20px;
+            border-radius: 50px;
+            border: 2px solid #6c8f69;
+        }
+
+        .btn {
+            background: #ffebc6;
+            border: none;
+            padding: 10px 24px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            border-radius: 60px;
+            border: 3px solid #6c8f69;
+            box-shadow: 0 5px 0 #4e6e4b;
+            color: #2d4b2c;
+            cursor: pointer;
+            transition: all 0.07s;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 1px 0 #4e6e4b;
+        }
+
+        .btn-primary {
+            background: #ffe28a;
+            border-color: #b68f3b;
+            box-shadow: 0 5px 0 #7d6525;
+        }
+
+        .message-box {
+            text-align: center;
+            font-size: 1.3rem;
+            font-weight: 700;
+            padding: 10px;
+            border-radius: 60px;
+            background: #fcf3d4;
+            border: 3px solid #b89f6b;
+            margin-top: 12px;
+            min-height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            color: #2d4b2c;
+            transition: 0.2s;
+        }
+
+        .message-box.success {
+            background: #c8e6c9;
+            border-color: #388e3c;
+        }
+
+        @media (max-width: 580px) {
+            .game-wrapper { padding: 12px; }
+            h1 { font-size: 1.5rem; }
+            .grid { gap: 10px; padding: 10px; }
+            .cell { font-size: 2.8rem; border-radius: 18px; }
+            .cell .leaf-icon { font-size: 2.8rem; }
+            .cell .bug-icon { font-size: 2.8rem; }
+            .cell.center-empty .leaf-icon { font-size: 3rem; }
+            .hint-bug { font-size: 2.2rem; }
+            .message-box { font-size: 1.1rem; min-height: 48px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="game-wrapper">
+    <h1>
+        <span>🍃</span> Кто спрятался? <span>🔍</span>
+    </h1>
+
+    <!-- Сетка 3x3 -->
+    <div class="grid" id="grid"></div>
+
+    <!-- Подсказка -->
+    <div class="hint-area">
+        <div class="hint-label">🐛 Кого ищем?</div>
+        <div class="hint-bugs" id="hintBugs"></div>
+    </div>
+
+    <div class="info-bar">
+        <div class="score">⭐ <span id="scoreCount">0</span> / 4</div>
+        <button class="btn btn-primary" id="resetBtn">🔄 Новая игра</button>
+    </div>
+
+    <div class="message-box" id="messageBox">
+        🍃 Нажми на листочек, чтобы узнать, кто там!
+    </div>
+</div>
+
+<script>
+    (function() {
+        // ---------- КОНФИГУРАЦИЯ ----------
+        const BUGS = [
+            { emoji: '🐞', name: 'Божья коровка' },
+            { emoji: '🐝', name: 'Пчела' },
+            { emoji: '🦋', name: 'Бабочка' },
+            { emoji: '🐛', name: 'Гусеница' }
+        ];
+
+        // Индекс центральной ячейки (3x3, нумерация с 0)
+        const CENTER_INDEX = 4;
+
+        let gridData = [];
+        let revealed = [];
+        let matched = [];
+        let selectedIndex = null;
+        let isWaiting = false;
+        let score = 0;
+        let foundPairs = [];
+
+        // DOM
+        const grid = document.getElementById('grid');
+        const hintBugs = document.getElementById('hintBugs');
+        const scoreCount = document.getElementById('scoreCount');
+        const messageBox = document.getElementById('messageBox');
+        const resetBtn = document.getElementById('resetBtn');
+
+        // ---------- ПЕРЕМЕШИВАНИЕ ----------
+        function shuffleArray(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        // ---------- ИНИЦИАЛИЗАЦИЯ ИГРЫ ----------
+        function initGame() {
+            // Создаём массив: каждая пара по 2 раза
+            let cards = [];
+            BUGS.forEach((bug, index) => {
+                cards.push({ bugIndex: index, emoji: bug.emoji, name: bug.name });
+                cards.push({ bugIndex: index, emoji: bug.emoji, name: bug.name });
+            });
+
+            // Перемешиваем
+            shuffleArray(cards);
+
+            // Вставляем пустую ячейку в центр
+            gridData = [];
+            let cardIndex = 0;
+            for (let i = 0; i < 9; i++) {
+                if (i === CENTER_INDEX) {
+                    gridData.push({ bugIndex: -1, emoji: '🍃', name: 'Пусто', isEmpty: true });
+                } else {
+                    gridData.push(cards[cardIndex]);
+                    cardIndex++;
+                }
+            }
+
+            revealed = Array(9).fill(false);
+            matched = Array(9).fill(false);
+            selectedIndex = null;
+            isWaiting = false;
+            score = 0;
+            foundPairs = [];
+            scoreCount.textContent = score;
+
+            renderGrid();
+            renderHint();
+            messageBox.textContent = '🍃 Нажми на листочек, чтобы узнать, кто там!';
+            messageBox.className = 'message-box';
+        }
+
+        // ---------- РЕНДЕР СЕТКИ ----------
+        function renderGrid() {
+            grid.innerHTML = '';
+            for (let i = 0; i < 9; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.dataset.index = i;
+
+                // Если это центральная ячейка — делаем её пустой
+                if (i === CENTER_INDEX) {
+                    cell.classList.add('center-empty');
+                    const leaf = document.createElement('span');
+                    leaf.className = 'leaf-icon';
+                    leaf.textContent = '🍃';
+                    cell.appendChild(leaf);
+                    grid.appendChild(cell);
+                    continue;
+                }
+
+                const leaf = document.createElement('span');
+                leaf.className = 'leaf-icon';
+                leaf.textContent = '🍃';
+                cell.appendChild(leaf);
+
+                const bug = document.createElement('span');
+                bug.className = 'bug-icon';
+                if (gridData[i].bugIndex !== -1) {
+                    bug.textContent = gridData[i].emoji;
+                } else {
+                    bug.textContent = '🍃';
+                }
+                cell.appendChild(bug);
+
+                // Если ячейка уже совпала
+                if (matched[i]) {
+                    cell.classList.add('matched');
+                    leaf.style.display = 'none';
+                    bug.style.opacity = '1';
+                } else if (revealed[i]) {
+                    cell.classList.add('revealed');
+                    leaf.style.display = 'none';
+                    bug.style.opacity = '1';
+                }
+
+                cell.addEventListener('click', () => onCellClick(i));
+                grid.appendChild(cell);
+            }
+        }
+
+        // ---------- РЕНДЕР ПОДСКАЗКИ ----------
+        function renderHint() {
+            hintBugs.innerHTML = '';
+            BUGS.forEach((bug, index) => {
+                const span = document.createElement('span');
+                span.className = 'hint-bug';
+                span.textContent = bug.emoji;
+                span.dataset.bugIndex = index;
+                
+                if (foundPairs.includes(index)) {
+                    span.classList.add('found');
+                }
+                
+                hintBugs.appendChild(span);
+            });
+        }
+
+        // ---------- ОБРАБОТКА КЛИКА ----------
+        function onCellClick(index) {
+            // Проверки
+            if (isWaiting) return;
+            if (matched[index]) return;
+            if (revealed[index]) return;
+            
+            // Центральная ячейка — не кликается
+            if (index === CENTER_INDEX) {
+                messageBox.textContent = '🍃 Здесь никого нет! Попробуй другой листочек.';
+                return;
+            }
+
+            if (gridData[index].bugIndex === -1) {
+                messageBox.textContent = '🍃 Здесь никого нет! Попробуй другой листочек.';
+                return;
+            }
+
+            // Открываем ячейку
+            revealed[index] = true;
+            renderGrid();
+
+            const currentBugIndex = gridData[index].bugIndex;
+
+            // Если это первая открытая карта
+            if (selectedIndex === null) {
+                selectedIndex = index;
+                messageBox.textContent = `🔍 Найди пару для ${gridData[index].emoji}!`;
+                return;
+            }
+
+            // Если это вторая карта
+            const firstIndex = selectedIndex;
+            const firstBugIndex = gridData[firstIndex].bugIndex;
+
+            // Проверяем, что это не одна и та же ячейка
+            if (firstIndex === index) {
+                selectedIndex = null;
+                return;
+            }
+
+            // Сравниваем
+            if (firstBugIndex === currentBugIndex) {
+                // ✅ Нашли пару!
+                matched[firstIndex] = true;
+                matched[index] = true;
+                revealed[firstIndex] = false;
+                revealed[index] = false;
+                
+                score++;
+                scoreCount.textContent = score;
+                foundPairs.push(currentBugIndex);
+                renderHint();
+
+                messageBox.textContent = `🎉 Ура! Нашли пару ${gridData[index].emoji}!`;
+                messageBox.className = 'message-box success';
+
+                selectedIndex = null;
+
+                // Проверка победы
+                if (foundPairs.length === BUGS.length) {
+                    messageBox.textContent = '🎊 Поздравляем! Ты нашёл всех! 🌟';
+                    messageBox.className = 'message-box success';
+                }
+
+                renderGrid();
+
+            } else {
+                // ❌ Не совпало — закрываем через 2 секунды
+                isWaiting = true;
+                messageBox.textContent = `😅 Не совпало: ${gridData[firstIndex].emoji} и ${gridData[index].emoji}. Попробуй ещё!`;
+                messageBox.className = 'message-box';
+
+                setTimeout(() => {
+                    revealed[firstIndex] = false;
+                    revealed[index] = false;
+                    selectedIndex = null;
+                    isWaiting = false;
+                    renderGrid();
+                    messageBox.textContent = '🍃 Нажми на листочек, чтобы узнать, кто там!';
+                    messageBox.className = 'message-box';
+                }, 1500);
+            }
+        }
+
+        // ---------- СБРОС ----------
+        function resetGame() {
+            initGame();
+        }
+
+        // ---------- ИНИЦИАЛИЗАЦИЯ ----------
+        function init() {
+            initGame();
+            resetBtn.addEventListener('click', resetGame);
+        }
+
+        if (document.readyState === 'complete') {
+            init();
+        } else {
+            window.addEventListener('load', init);
+        }
+    })();
+</script>
+</body>
+</html>
